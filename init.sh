@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_NAME="."
+REPO_NAME="vps-gitops-ovh"
 
-#if [ -d "$REPO_NAME" ]; then
- # echo "Le dossier '$REPO_NAME' existe déjà. Stop."
-  #exit 1
-#fi
+if [ -d "$REPO_NAME" ]; then
+  echo "Le dossier '$REPO_NAME' existe déjà. Stop."
+  exit 1
+fi
 
 mkdir -p "$REPO_NAME"/{ansible/{inventory,roles/{common,docker,reverse_proxy,monitoring}},.github/workflows,docs,scripts,examples}
 

@@ -15,5 +15,5 @@ Template public “portfolio-grade” pour gérer un VPS OVH comme une petite pr
 
 ## Ce que ce repo démontre
 - IaC et automatisation (Ansible roles)
-- CI/CD sérieux (lint, check-mode, déploiement)
+- CI/CD  (lint, check-mode, déploiement)
 - Sécurité + ops mindset (docs, runbooks, rollback via snapshot)
