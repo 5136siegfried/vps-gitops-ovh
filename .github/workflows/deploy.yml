@@ -1,0 +1,37 @@
+name: Deploy VPS (Ansible)
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Run Ansible
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          cd ansible
+          # Option A: tu renseignes production.ini localement (gitignored)
+          # ansible-playbook -i inventory/production.ini playbook.yml
+
+          # Option B: inventory dynamique simple (sans fichier)
+          echo "[vps]" > /tmp/inventory.ini
+          echo "${VPS_HOST} ansible_user=${VPS_USER} ansible_port=22" >> /tmp/inventory.ini
+          ansible-playbook -i /tmp/inventory.ini playbook.yml

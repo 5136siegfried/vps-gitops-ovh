@@ -1,0 +1,39 @@
+name: CI (lint + check)
+
+on:
+  pull_request:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible yamllint
+          python3 -m pip install --user ansible-lint
+
+      - name: Yamllint
+        run: |
+          yamllint .
+
+      - name: Ansible-lint
+        run: |
+          ~/.local/bin/ansible-lint ansible
+
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
+
+      - name: Ansible syntax check
+        run: |
+          ansible-playbook --syntax-check ansible/playbook.yml

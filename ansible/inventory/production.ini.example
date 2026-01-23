@@ -1,0 +1,3 @@
+[vps]
+# Remplace par l'IP ou hostname
+your.vps.ip.or.host ansible_user=deploy ansible_port=22

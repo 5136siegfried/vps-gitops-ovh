@@ -1,0 +1,12 @@
+# Inventory réel (ne pas commiter)
+ansible/inventory/*.ini
+!ansible/inventory/*.example
+
+# Secrets / keys
+.env
+*.key
+id_ed25519*
+*.pem
+
+# Ansible artifacts
+*.retry
