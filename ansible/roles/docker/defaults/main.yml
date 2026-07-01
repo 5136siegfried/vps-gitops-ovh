@@ -1,2 +1,20 @@
 ---
-# defaults for role: docker
+# Docker CE version (latest stable if not specified)
+docker_edition: ce
+docker_package: "docker-{{ docker_edition }}"
+
+# Docker Compose plugin version
+docker_compose_version: "v2.24.0"
+
+# Docker daemon configuration
+docker_daemon_config:
+  log-driver: "json-file"
+  log-opts:
+    max-size: "10m"
+    max-file: "3"
+  live-restore: true
+  userland-proxy: false
+  no-new-privileges: true
+
+# Users to add to docker group (in addition to deploy_user)
+docker_additional_users: []

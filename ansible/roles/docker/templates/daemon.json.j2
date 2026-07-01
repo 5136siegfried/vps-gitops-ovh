@@ -1,0 +1,11 @@
+{
+  "log-driver": "{{ docker_daemon_config['log-driver'] }}",
+  "log-opts": {
+    "max-size": "{{ docker_daemon_config['log-opts']['max-size'] }}",
+    "max-file": "{{ docker_daemon_config['log-opts']['max-file'] }}"
+  },
+  "live-restore": {{ docker_daemon_config['live-restore'] | lower }},
+  "userland-proxy": {{ docker_daemon_config['userland-proxy'] | lower }},
+  "no-new-privileges": {{ docker_daemon_config['no-new-privileges'] | lower }},
+  "storage-driver": "overlay2"
+}

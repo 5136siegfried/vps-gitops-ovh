@@ -1,2 +1,175 @@
 ---
-# tasks for role: common
+# ============================================================
+# ROLE: common
+# Hardening de base pour un VPS OVH Ubuntu 22.04+
+# ============================================================
+
+# ── System ──────────────────────────────────────────────────
+
+- name: Set hostname
+  hostname:
+    name: "{{ inventory_hostname }}"
+
+- name: Set timezone
+  timezone:
+    name: "{{ timezone }}"
+
+- name: Set locale
+  locale_gen:
+    name: "{{ locale }}"
+    state: present
+
+- name: Update apt cache and upgrade packages
+  apt:
+    update_cache: yes
+    upgrade: dist
+    cache_valid_time: 3600
+
+- name: Install base packages
+  apt:
+    name:
+      - curl
+      - wget
+      - git
+      - vim
+      - htop
+      - ufw
+      - fail2ban
+      - unattended-upgrades
+      - apt-listchanges
+      - logrotate
+      - rsync
+      - ca-certificates
+      - gnupg
+      - lsb-release
+      - net-tools
+      - jq
+    state: present
+
+# ── Unattended upgrades ─────────────────────────────────────
+
+- name: Enable unattended upgrades
+  copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Download-Upgradeable-Packages "1";
+      APT::Periodic::AutocleanInterval "7";
+      APT::Periodic::Unattended-Upgrade "1";
+    owner: root
+    group: root
+    mode: '0644'
+
+# ── Deploy user ─────────────────────────────────────────────
+
+- name: Create deploy user
+  user:
+    name: "{{ deploy_user }}"
+    shell: "{{ deploy_user_shell }}"
+    groups: "{{ deploy_user_groups }}"
+    append: yes
+    create_home: yes
+    state: present
+
+- name: Create .ssh directory for deploy user
+  file:
+    path: "/home/{{ deploy_user }}/.ssh"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0700'
+
+- name: Deploy authorized_keys for deploy user
+  authorized_key:
+    user: "{{ deploy_user }}"
+    state: present
+    key: "{{ deploy_ssh_public_key }}"
+  when: deploy_ssh_public_key is defined
+
+- name: Allow deploy user to sudo without password
+  copy:
+    dest: "/etc/sudoers.d/{{ deploy_user }}"
+    content: "{{ deploy_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    validate: 'visudo -cf %s'
+    mode: '0440'
+
+# ── SSH hardening ────────────────────────────────────────────
+
+- name: Harden SSH configuration
+  template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: '0600'
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: restart sshd
+
+# ── UFW ─────────────────────────────────────────────────────
+
+- name: Reset UFW to defaults
+  ufw:
+    state: reset
+
+- name: Set UFW default policies
+  ufw:
+    direction: "{{ item.direction }}"
+    policy: "{{ item.policy }}"
+  loop:
+    - { direction: incoming, policy: deny }
+    - { direction: outgoing, policy: allow }
+
+- name: Allow configured ports
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: "{{ ufw_allowed_ports }}"
+
+- name: Enable UFW
+  ufw:
+    state: enabled
+    logging: 'on'
+
+# ── Fail2ban ─────────────────────────────────────────────────
+
+- name: Configure fail2ban
+  template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart fail2ban
+
+- name: Enable and start fail2ban
+  service:
+    name: fail2ban
+    state: started
+    enabled: yes
+
+# ── Kernel hardening (sysctl) ────────────────────────────────
+
+- name: Apply sysctl hardening
+  sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: yes
+  loop:
+    # IP spoofing protection
+    - { key: net.ipv4.conf.all.rp_filter, value: "1" }
+    - { key: net.ipv4.conf.default.rp_filter, value: "1" }
+    # Ignore ICMP redirects
+    - { key: net.ipv4.conf.all.accept_redirects, value: "0" }
+    - { key: net.ipv6.conf.all.accept_redirects, value: "0" }
+    # Ignore send redirects
+    - { key: net.ipv4.conf.all.send_redirects, value: "0" }
+    # Disable IP source routing
+    - { key: net.ipv4.conf.all.accept_source_route, value: "0" }
+    # SYN flood protection
+    - { key: net.ipv4.tcp_syncookies, value: "1" }
+    # Log martians
+    - { key: net.ipv4.conf.all.log_martians, value: "1" }
+    # Disable IPv6 if not needed
+    - { key: net.ipv6.conf.all.disable_ipv6, value: "0" }

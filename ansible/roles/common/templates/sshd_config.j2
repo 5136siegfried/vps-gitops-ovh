@@ -1,0 +1,30 @@
+# Managed by Ansible — do not edit manually
+
+Port {{ ssh_port }}
+AddressFamily inet
+
+PermitRootLogin {{ ssh_permit_root_login }}
+PasswordAuthentication {{ ssh_password_authentication }}
+PubkeyAuthentication {{ ssh_pubkey_authentication }}
+AuthorizedKeysFile .ssh/authorized_keys
+PermitEmptyPasswords no
+ChallengeResponseAuthentication no
+UsePAM yes
+
+MaxAuthTries {{ ssh_max_auth_tries }}
+MaxSessions 10
+LoginGraceTime 30
+
+ClientAliveInterval {{ ssh_client_alive_interval }}
+ClientAliveCountMax {{ ssh_client_alive_count_max }}
+
+X11Forwarding no
+AllowAgentForwarding no
+AllowTcpForwarding no
+PrintMotd no
+
+Subsystem sftp /usr/lib/openssh/sftp-server
+
+{% if deploy_user is defined %}
+AllowUsers {{ deploy_user }}
+{% endif %}

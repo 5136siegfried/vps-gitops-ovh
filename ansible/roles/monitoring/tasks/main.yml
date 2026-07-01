@@ -1,2 +1,114 @@
 ---
-# tasks for role: monitoring
+# ============================================================
+# ROLE: monitoring
+# Agents légers côté VPS prod — Node Exporter + cAdvisor
+# Metrics exposées localement, scrapées par le VPS monitoring
+# ============================================================
+
+# ── Node Exporter ────────────────────────────────────────────
+
+- name: Create node_exporter user
+  user:
+    name: node_exporter
+    system: yes
+    shell: /bin/false
+    create_home: no
+
+- name: Download Node Exporter
+  get_url:
+    url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+    dest: "/tmp/node_exporter-{{ node_exporter_version }}.tar.gz"
+    mode: '0644'
+
+- name: Extract Node Exporter
+  unarchive:
+    src: "/tmp/node_exporter-{{ node_exporter_version }}.tar.gz"
+    dest: /tmp
+    remote_src: yes
+
+- name: Install Node Exporter binary
+  copy:
+    src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+    dest: /usr/local/bin/node_exporter
+    owner: node_exporter
+    group: node_exporter
+    mode: '0755'
+    remote_src: yes
+  notify: restart node_exporter
+
+- name: Deploy Node Exporter systemd service
+  template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart node_exporter
+
+- name: Enable and start Node Exporter
+  service:
+    name: node_exporter
+    state: started
+    enabled: yes
+
+# ── UFW — allow Prometheus scrape from monitoring VPS ────────
+
+- name: Allow Node Exporter port from monitoring VPS only
+  ufw:
+    rule: allow
+    port: "{{ node_exporter_port }}"
+    proto: tcp
+    src: "{{ prometheus_server_ip }}"
+    comment: "Prometheus scrape — monitoring VPS"
+
+- name: Allow cAdvisor port from monitoring VPS only
+  ufw:
+    rule: allow
+    port: "{{ cadvisor_port }}"
+    proto: tcp
+    src: "{{ prometheus_server_ip }}"
+    comment: "cAdvisor scrape — monitoring VPS"
+
+# ── cAdvisor (Docker) ─────────────────────────────────────────
+
+- name: Deploy cAdvisor via Docker
+  template:
+    src: cadvisor-compose.yml.j2
+    dest: /opt/cadvisor/docker-compose.yml
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0644'
+
+- name: Create cAdvisor directory
+  file:
+    path: /opt/cadvisor
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: '0755'
+
+- name: Start cAdvisor
+  community.docker.docker_compose_v2:
+    project_src: /opt/cadvisor
+    state: present
+  become_user: "{{ deploy_user }}"
+
+# ── Nginx — expose metrics via reverse proxy (auth basique) ──
+
+- name: Deploy metrics nginx vhost (scrape endpoint sécurisé)
+  template:
+    src: metrics_vhost.conf.j2
+    dest: /etc/nginx/sites-available/metrics.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload nginx
+
+- name: Enable metrics vhost
+  file:
+    src: /etc/nginx/sites-available/metrics.conf
+    dest: /etc/nginx/sites-enabled/metrics.conf
+    state: link
+  notify: reload nginx

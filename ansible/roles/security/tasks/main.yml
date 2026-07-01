@@ -1,0 +1,156 @@
+---
+# ============================================================
+# ROLE: security
+# Intégration vps-security-toolkit + auditd + rkhunter
+# ============================================================
+
+# ── Packages ─────────────────────────────────────────────────
+
+- name: Install security packages
+  apt:
+    name:
+      - auditd
+      - audispd-plugins
+      - rkhunter
+      - chkrootkit
+      - lynis
+      - libpam-pwquality
+      - acl
+    state: present
+    update_cache: yes
+
+# ── vps-security-toolkit ─────────────────────────────────────
+
+- name: Create toolkit directory
+  file:
+    path: "{{ toolkit_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Clone vps-security-toolkit
+  git:
+    repo: "{{ toolkit_repo }}"
+    dest: "{{ toolkit_dir }}"
+    version: main
+    update: yes
+  register: toolkit_clone
+
+- name: Create reports directory
+  file:
+    path: "{{ toolkit_report_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0750'
+
+- name: Make audit script executable
+  file:
+    path: "{{ toolkit_dir }}/audit.sh"
+    mode: '0755'
+
+- name: Deploy audit wrapper script
+  template:
+    src: audit_runner.sh.j2
+    dest: /usr/local/bin/vps-audit
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Schedule daily security audit
+  cron:
+    name: "VPS security audit"
+    hour: "{{ audit_schedule_hour }}"
+    minute: "{{ audit_schedule_minute }}"
+    weekday: "{{ audit_schedule_weekday }}"
+    user: root
+    job: "/usr/local/bin/vps-audit >> {{ toolkit_report_dir }}/audit-$(date +\\%Y\\%m\\%d).log 2>&1"
+    state: present
+
+- name: Run initial audit
+  command: /usr/local/bin/vps-audit
+  register: initial_audit
+  changed_when: false
+  failed_when: false
+
+- name: Show initial audit result
+  debug:
+    msg: "{{ initial_audit.stdout_lines[-5:] }}"
+  when: initial_audit.stdout_lines is defined
+
+# ── Auditd ───────────────────────────────────────────────────
+
+- name: Deploy auditd rules
+  template:
+    src: audit.rules.j2
+    dest: /etc/audit/rules.d/hardening.rules
+    owner: root
+    group: root
+    mode: '0640'
+  notify: restart auditd
+  when: auditd_enabled
+
+- name: Enable and start auditd
+  service:
+    name: auditd
+    state: started
+    enabled: yes
+  when: auditd_enabled
+
+# ── rkhunter ─────────────────────────────────────────────────
+
+- name: Update rkhunter database
+  command: rkhunter --update
+  changed_when: false
+  failed_when: false
+  when: rkhunter_enabled and rkhunter_update_on_install
+
+- name: Set rkhunter baseline
+  command: rkhunter --propupd
+  changed_when: false
+  when: rkhunter_enabled
+
+- name: Schedule weekly rkhunter scan
+  cron:
+    name: "rkhunter weekly scan"
+    weekday: "1"
+    hour: "3"
+    minute: "30"
+    user: root
+    job: "rkhunter --check --skip-keypress --report-warnings-only >> /var/log/rkhunter-weekly.log 2>&1"
+    state: present
+  when: rkhunter_enabled
+
+# ── PAM password policy ───────────────────────────────────────
+
+- name: Configure password quality policy
+  lineinfile:
+    path: /etc/security/pwquality.conf
+    regexp: "^{{ item.key }}"
+    line: "{{ item.key }} = {{ item.value }}"
+    state: present
+  loop:
+    - { key: minlen, value: "14" }
+    - { key: dcredit, value: "-1" }
+    - { key: ucredit, value: "-1" }
+    - { key: lcredit, value: "-1" }
+    - { key: ocredit, value: "-1" }
+    - { key: maxrepeat, value: "3" }
+
+# ── Logwatch ─────────────────────────────────────────────────
+
+- name: Install logwatch
+  apt:
+    name: logwatch
+    state: present
+
+- name: Schedule weekly logwatch report
+  cron:
+    name: "Logwatch weekly"
+    weekday: "1"
+    hour: "6"
+    minute: "0"
+    user: root
+    job: "logwatch --output mail --mailto root --detail high >> /var/log/logwatch-weekly.log 2>&1"
+    state: present

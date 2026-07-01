@@ -1,0 +1,26 @@
+# Managed by Ansible — do not edit manually
+
+[DEFAULT]
+bantime  = {{ fail2ban_bantime }}
+findtime = {{ fail2ban_findtime }}
+maxretry = {{ fail2ban_maxretry }}
+backend  = systemd
+banaction = ufw
+
+[sshd]
+enabled  = true
+port     = {{ ssh_port }}
+filter   = sshd
+logpath  = /var/log/auth.log
+maxretry = {{ fail2ban_maxretry }}
+
+[nginx-http-auth]
+enabled  = true
+filter   = nginx-http-auth
+logpath  = /var/log/nginx/error.log
+
+[nginx-botsearch]
+enabled  = true
+filter   = nginx-botsearch
+logpath  = /var/log/nginx/access.log
+maxretry = 2

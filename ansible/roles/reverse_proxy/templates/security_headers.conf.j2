@@ -1,0 +1,4 @@
+{% for header, value in nginx_security_headers.items() %}
+add_header {{ header }} "{{ value }}" always;
+{% endfor %}
+add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;

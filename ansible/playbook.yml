@@ -1,11 +1,13 @@
+---
 - name: Configure OVH VPS
   hosts: vps
   become: true
   vars:
-    # Exemple : active/désactive des rôles facilement
     enable_docker: true
     enable_reverse_proxy: true
     enable_monitoring: true
+    enable_security: true
+
   roles:
     - role: common
     - role: docker
@@ -14,3 +16,5 @@
       when: enable_reverse_proxy
     - role: monitoring
       when: enable_monitoring
+    - role: security
+      when: enable_security

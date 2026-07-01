@@ -1,0 +1,17 @@
+---
+# Surcharger ces valeurs par VPS dans host_vars/
+deploy_user: deploy
+ssh_port: 2222
+timezone: Europe/Paris
+
+# Mettre la clé publique ici ou dans host_vars
+# deploy_ssh_public_key: "ssh-ed25519 AAAA..."
+
+# Monitoring VPS IP (pour UFW)
+prometheus_server_ip: "10.0.0.2"
+
+# Nginx vhosts — à surcharger par host
+nginx_vhosts: []
+
+# Certbot
+certbot_email: "admin@5136.fr"

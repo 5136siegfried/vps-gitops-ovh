@@ -1,3 +1,11 @@
+# Exemple de service Docker exposé via nginx reverse proxy
+# Copier dans /opt/<service>/docker-compose.yml sur le VPS
+# Ajouter le vhost dans group_vars/vps.yml :
+#   nginx_vhosts:
+#     - domain: whoami.5136.fr
+#       upstream: localhost:8080
+#       websocket: false
+
 services:
   whoami:
     image: traefik/whoami

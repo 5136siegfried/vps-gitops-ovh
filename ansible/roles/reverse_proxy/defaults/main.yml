@@ -1,2 +1,31 @@
 ---
-# defaults for role: reverse_proxy
+# Nginx
+nginx_worker_processes: auto
+nginx_worker_connections: 1024
+nginx_keepalive_timeout: 65
+nginx_client_max_body_size: "10m"
+nginx_server_tokens: "off"
+
+# Certbot
+certbot_email: "admin@5136.fr"
+certbot_staging: false  # set true to test without rate limits
+
+# Virtual hosts to configure
+# Each entry will get an nginx vhost + TLS cert
+nginx_vhosts: []
+# Example:
+# nginx_vhosts:
+#   - domain: app.5136.fr
+#     upstream: localhost:8080
+#     websocket: false
+#   - domain: ws.5136.fr
+#     upstream: localhost:3000
+#     websocket: true
+
+# Security headers
+nginx_security_headers:
+  X-Frame-Options: "SAMEORIGIN"
+  X-Content-Type-Options: "nosniff"
+  X-XSS-Protection: "1; mode=block"
+  Referrer-Policy: "strict-origin-when-cross-origin"
+  Permissions-Policy: "geolocation=(), microphone=(), camera=()"
