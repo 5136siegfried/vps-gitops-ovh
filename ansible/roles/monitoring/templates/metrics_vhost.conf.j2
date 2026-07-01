@@ -2,14 +2,14 @@ server {
     listen 9090;
     server_name _;
 
-    allow {{ prometheus_server_ip }};
+    allow {{ monitoring_prometheus_server_ip }};
     deny all;
 
     location /node {
-        proxy_pass http://127.0.0.1:{{ node_exporter_port }}/metrics;
+        proxy_pass http://127.0.0.1:{{ monitoring_node_exporter_port }}/metrics;
     }
 
     location /cadvisor {
-        proxy_pass http://127.0.0.1:{{ cadvisor_port }}/metrics;
+        proxy_pass http://127.0.0.1:{{ monitoring_cadvisor_port }}/metrics;
     }
 }

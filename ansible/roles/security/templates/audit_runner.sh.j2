@@ -1,29 +1,25 @@
 #!/bin/bash
 # Managed by Ansible — do not edit manually
-# Wrapper autour de vps-security-toolkit avec alerting
 
 set -euo pipefail
 
-TOOLKIT="{{ toolkit_dir }}/audit.sh"
-REPORT_DIR="{{ toolkit_report_dir }}"
-THRESHOLD="{{ audit_score_threshold }}"
-WEBHOOK="{{ audit_alert_webhook }}"
+TOOLKIT="{{ security_toolkit_dir }}/audit.sh"
+REPORT_DIR="{{ security_toolkit_report_dir }}"
+THRESHOLD="{{ security_audit_score_threshold }}"
+WEBHOOK="{{ security_audit_alert_webhook }}"
 REPORT="${REPORT_DIR}/latest.json"
 
-# Run audit
 bash "$TOOLKIT" --json > "$REPORT" 2>&1 || true
 
-# Extract score
 SCORE=$(jq -r '.score // 0' "$REPORT" 2>/dev/null || echo "0")
 
 echo "[vps-audit] Score: ${SCORE}/100 (threshold: ${THRESHOLD})"
 
-# Alert if below threshold
 if [ -n "$WEBHOOK" ] && [ "$SCORE" -lt "$THRESHOLD" ]; then
   HOSTNAME=$(hostname)
   curl -s -X POST "$WEBHOOK" \
     -H "Content-Type: application/json" \
-    -d "{\"text\": \"⚠️ VPS Security Alert — ${HOSTNAME}\\nScore: ${SCORE}/100 (below threshold ${THRESHOLD})\\nCheck: ${REPORT_DIR}/latest.json\"}" \
+    -d "{\"text\": \"⚠️ VPS Security Alert — ${HOSTNAME}\nScore: ${SCORE}/100 (below threshold ${THRESHOLD})\"}" \
     || true
 fi
 

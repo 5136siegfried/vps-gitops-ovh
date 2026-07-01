@@ -1,13 +1,11 @@
 ---
 # ============================================================
 # ROLE: security
-# Intégration vps-security-toolkit + auditd + rkhunter
+# vps-security-toolkit + auditd + rkhunter + PAM policy
 # ============================================================
 
-# ── Packages ─────────────────────────────────────────────────
-
 - name: Install security packages
-  apt:
+  ansible.builtin.apt:
     name:
       - auditd
       - audispd-plugins
@@ -16,42 +14,41 @@
       - lynis
       - libpam-pwquality
       - acl
+      - logwatch
     state: present
-    update_cache: yes
-
-# ── vps-security-toolkit ─────────────────────────────────────
+    update_cache: true
 
 - name: Create toolkit directory
-  file:
-    path: "{{ toolkit_dir }}"
+  ansible.builtin.file:
+    path: "{{ security_toolkit_dir }}"
     state: directory
     owner: root
     group: root
     mode: '0755'
 
 - name: Clone vps-security-toolkit
-  git:
-    repo: "{{ toolkit_repo }}"
-    dest: "{{ toolkit_dir }}"
+  ansible.builtin.git:
+    repo: "{{ security_toolkit_repo }}"
+    dest: "{{ security_toolkit_dir }}"
     version: main
-    update: yes
-  register: toolkit_clone
+    update: true
+  register: security_toolkit_clone
 
 - name: Create reports directory
-  file:
-    path: "{{ toolkit_report_dir }}"
+  ansible.builtin.file:
+    path: "{{ security_toolkit_report_dir }}"
     state: directory
     owner: root
     group: root
     mode: '0750'
 
 - name: Make audit script executable
-  file:
-    path: "{{ toolkit_dir }}/audit.sh"
+  ansible.builtin.file:
+    path: "{{ security_toolkit_dir }}/audit.sh"
     mode: '0755'
 
 - name: Deploy audit wrapper script
-  template:
+  ansible.builtin.template:
     src: audit_runner.sh.j2
     dest: /usr/local/bin/vps-audit
     owner: root
@@ -59,60 +56,59 @@
     mode: '0755'
 
 - name: Schedule daily security audit
-  cron:
+  ansible.builtin.cron:
     name: "VPS security audit"
-    hour: "{{ audit_schedule_hour }}"
-    minute: "{{ audit_schedule_minute }}"
-    weekday: "{{ audit_schedule_weekday }}"
+    hour: "{{ security_audit_schedule_hour }}"
+    minute: "{{ security_audit_schedule_minute }}"
+    weekday: "{{ security_audit_schedule_weekday }}"
     user: root
-    job: "/usr/local/bin/vps-audit >> {{ toolkit_report_dir }}/audit-$(date +\\%Y\\%m\\%d).log 2>&1"
+    job: "/usr/local/bin/vps-audit >> {{ security_toolkit_report_dir }}/audit-$(date +\\%Y\\%m\\%d).log 2>&1"
     state: present
 
 - name: Run initial audit
-  command: /usr/local/bin/vps-audit
-  register: initial_audit
+  ansible.builtin.command:
+    cmd: /usr/local/bin/vps-audit
+  register: security_initial_audit
   changed_when: false
   failed_when: false
 
 - name: Show initial audit result
-  debug:
-    msg: "{{ initial_audit.stdout_lines[-5:] }}"
-  when: initial_audit.stdout_lines is defined
-
-# ── Auditd ───────────────────────────────────────────────────
+  ansible.builtin.debug:
+    msg: "{{ security_initial_audit.stdout_lines[-5:] }}"
+  when: security_initial_audit.stdout_lines is defined
 
 - name: Deploy auditd rules
-  template:
+  ansible.builtin.template:
     src: audit.rules.j2
     dest: /etc/audit/rules.d/hardening.rules
     owner: root
     group: root
     mode: '0640'
-  notify: restart auditd
-  when: auditd_enabled
+  notify: Restart auditd
+  when: security_auditd_enabled
 
 - name: Enable and start auditd
-  service:
+  ansible.builtin.service:
     name: auditd
     state: started
-    enabled: yes
-  when: auditd_enabled
-
-# ── rkhunter ─────────────────────────────────────────────────
+    enabled: true
+  when: security_auditd_enabled
 
 - name: Update rkhunter database
-  command: rkhunter --update
+  ansible.builtin.command:
+    cmd: rkhunter --update
   changed_when: false
   failed_when: false
-  when: rkhunter_enabled and rkhunter_update_on_install
+  when: security_rkhunter_enabled and security_rkhunter_update_on_install
 
 - name: Set rkhunter baseline
-  command: rkhunter --propupd
+  ansible.builtin.command:
+    cmd: rkhunter --propupd
   changed_when: false
-  when: rkhunter_enabled
+  when: security_rkhunter_enabled
 
 - name: Schedule weekly rkhunter scan
-  cron:
+  ansible.builtin.cron:
     name: "rkhunter weekly scan"
     weekday: "1"
     hour: "3"
@@ -120,33 +116,24 @@
     user: root
     job: "rkhunter --check --skip-keypress --report-warnings-only >> /var/log/rkhunter-weekly.log 2>&1"
     state: present
-  when: rkhunter_enabled
-
-# ── PAM password policy ───────────────────────────────────────
+  when: security_rkhunter_enabled
 
 - name: Configure password quality policy
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/security/pwquality.conf
     regexp: "^{{ item.key }}"
     line: "{{ item.key }} = {{ item.value }}"
     state: present
   loop:
-    - { key: minlen, value: "14" }
-    - { key: dcredit, value: "-1" }
-    - { key: ucredit, value: "-1" }
-    - { key: lcredit, value: "-1" }
-    - { key: ocredit, value: "-1" }
-    - { key: maxrepeat, value: "3" }
-
-# ── Logwatch ─────────────────────────────────────────────────
-
-- name: Install logwatch
-  apt:
-    name: logwatch
-    state: present
+    - {key: minlen, value: "14"}
+    - {key: dcredit, value: "-1"}
+    - {key: ucredit, value: "-1"}
+    - {key: lcredit, value: "-1"}
+    - {key: ocredit, value: "-1"}
+    - {key: maxrepeat, value: "3"}
 
 - name: Schedule weekly logwatch report
-  cron:
+  ansible.builtin.cron:
     name: "Logwatch weekly"
     weekday: "1"
     hour: "6"

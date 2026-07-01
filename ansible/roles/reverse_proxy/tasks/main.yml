@@ -4,31 +4,27 @@
 # Nginx + Certbot (Let's Encrypt) avec hardening TLS
 # ============================================================
 
-# ── Install ──────────────────────────────────────────────────
-
 - name: Install nginx and certbot
-  apt:
+  ansible.builtin.apt:
     name:
       - nginx
       - certbot
       - python3-certbot-nginx
     state: present
-    update_cache: yes
-
-# ── Nginx global config ──────────────────────────────────────
+    update_cache: true
 
 - name: Deploy nginx.conf
-  template:
+  ansible.builtin.template:
     src: nginx.conf.j2
     dest: /etc/nginx/nginx.conf
     owner: root
     group: root
     mode: '0644'
     validate: 'nginx -t -c %s'
-  notify: reload nginx
+  notify: Reload nginx
 
 - name: Deploy security headers snippet
-  template:
+  ansible.builtin.template:
     src: security_headers.conf.j2
     dest: /etc/nginx/snippets/security_headers.conf
     owner: root
@@ -36,7 +32,7 @@
     mode: '0644'
 
 - name: Deploy SSL snippet
-  template:
+  ansible.builtin.template:
     src: ssl_params.conf.j2
     dest: /etc/nginx/snippets/ssl_params.conf
     owner: root
@@ -44,28 +40,26 @@
     mode: '0644'
 
 - name: Remove default nginx vhost
-  file:
+  ansible.builtin.file:
     path: /etc/nginx/sites-enabled/default
     state: absent
-  notify: reload nginx
-
-# ── TLS certificates ─────────────────────────────────────────
+  notify: Reload nginx
 
 - name: Obtain TLS certificates for vhosts
-  command: >
-    certbot certonly --nginx
-    --non-interactive
-    --agree-tos
-    --email {{ certbot_email }}
-    -d {{ item.domain }}
-    {% if certbot_staging %}--staging{% endif %}
-  args:
+  ansible.builtin.command:
+    cmd: >
+      certbot certonly --nginx
+      --non-interactive
+      --agree-tos
+      --email {{ reverse_proxy_certbot_email }}
+      -d {{ item.domain }}
+      {{ '--staging' if reverse_proxy_certbot_staging else '' }}
     creates: "/etc/letsencrypt/live/{{ item.domain }}/fullchain.pem"
-  loop: "{{ nginx_vhosts }}"
-  when: nginx_vhosts | length > 0
+  loop: "{{ reverse_proxy_nginx_vhosts }}"
+  when: reverse_proxy_nginx_vhosts | length > 0
 
 - name: Setup certbot auto-renewal
-  cron:
+  ansible.builtin.cron:
     name: "Certbot renew"
     minute: "0"
     hour: "3"
@@ -74,37 +68,33 @@
     job: "certbot renew --quiet --nginx >> /var/log/certbot-renew.log 2>&1"
     state: present
 
-# ── Virtual hosts ─────────────────────────────────────────────
-
 - name: Deploy vhost configs
-  template:
+  ansible.builtin.template:
     src: vhost.conf.j2
     dest: "/etc/nginx/sites-available/{{ item.domain }}.conf"
     owner: root
     group: root
     mode: '0644'
-    validate: 'nginx -t -c /dev/stdin < %s || true'
-  loop: "{{ nginx_vhosts }}"
-  when: nginx_vhosts | length > 0
-  notify: reload nginx
+  loop: "{{ reverse_proxy_nginx_vhosts }}"
+  when: reverse_proxy_nginx_vhosts | length > 0
+  notify: Reload nginx
 
 - name: Enable vhost configs
-  file:
+  ansible.builtin.file:
     src: "/etc/nginx/sites-available/{{ item.domain }}.conf"
     dest: "/etc/nginx/sites-enabled/{{ item.domain }}.conf"
     state: link
-  loop: "{{ nginx_vhosts }}"
-  when: nginx_vhosts | length > 0
-  notify: reload nginx
-
-# ── Service ──────────────────────────────────────────────────
+  loop: "{{ reverse_proxy_nginx_vhosts }}"
+  when: reverse_proxy_nginx_vhosts | length > 0
+  notify: Reload nginx
 
 - name: Enable and start nginx
-  service:
+  ansible.builtin.service:
     name: nginx
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Verify nginx config
-  command: nginx -t
+  ansible.builtin.command:
+    cmd: nginx -t
   changed_when: false

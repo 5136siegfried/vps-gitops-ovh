@@ -3,7 +3,7 @@ name: CI (lint + check)
 on:
   pull_request:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   lint:
@@ -14,26 +14,55 @@ jobs:
       - name: Install tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y ansible yamllint
-          python3 -m pip install --user ansible-lint
+          sudo apt-get install -y ansible yamllint python3-venv
+          python3 -m venv /opt/ansible-lint-venv
+          /opt/ansible-lint-venv/bin/pip install ansible-lint
+
+      - name: Install Ansible collections
+        run: |
+          ansible-galaxy collection install \
+            community.general \
+            community.docker \
+            ansible.posix
+          # Also install inside the venv so ansible-lint can resolve them
+          /opt/ansible-lint-venv/bin/python -m pip install ansible-core
+          /opt/ansible-lint-venv/bin/ansible-galaxy collection install \
+            community.general \
+            community.docker \
+            ansible.posix
 
       - name: Yamllint
         run: |
-          yamllint .
+          yamllint ansible/ -d '{
+            extends: default,
+            rules: {
+              line-length: {max: 160},
+              truthy: {allowed-values: ["true", "false"]}
+            }
+          }'
 
       - name: Ansible-lint
-        run: |
-          ~/.local/bin/ansible-lint ansible
+        run: /opt/ansible-lint-venv/bin/ansible-lint ansible/
 
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Install Ansible
         run: |
           sudo apt-get update
           sudo apt-get install -y ansible
 
+      - name: Install Ansible collections
+        run: |
+          ansible-galaxy collection install \
+            community.general \
+            community.docker \
+            ansible.posix
+
       - name: Ansible syntax check
         run: |
-          ansible-playbook --syntax-check ansible/playbook.yml
+          echo "[vps]" > /tmp/ci-inventory.ini
+          echo "localhost ansible_connection=local" >> /tmp/ci-inventory.ini
+          ansible-playbook --syntax-check -i /tmp/ci-inventory.ini ansible/playbook.yml

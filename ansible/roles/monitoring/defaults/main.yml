@@ -1,19 +1,13 @@
 ---
-# Node Exporter
-node_exporter_version: "1.7.0"
-node_exporter_port: 9100
+monitoring_node_exporter_version: "1.7.0"
+monitoring_node_exporter_port: 9100
 
-# cAdvisor
-cadvisor_version: "v0.47.2"
-cadvisor_port: 8080
+monitoring_cadvisor_version: "v0.47.2"
+monitoring_cadvisor_port: 8080
 
-# Prometheus scrape (sur le VPS monitoring)
-prometheus_server_ip: "10.0.0.2"  # IP du VPS monitoring — à surcharger dans l'inventory
+monitoring_prometheus_server_ip: "10.0.0.2"
+monitoring_metrics_bind_address: "127.0.0.1"
 
-# Bind local uniquement (pas exposé publiquement)
-metrics_bind_address: "127.0.0.1"
-
-# Alerting thresholds (pour le VPS monitoring, référence ici)
-alert_cpu_threshold: 85
-alert_memory_threshold: 90
-alert_disk_threshold: 85
+monitoring_alert_cpu_threshold: 85
+monitoring_alert_memory_threshold: 90
+monitoring_alert_disk_threshold: 85

@@ -2,113 +2,106 @@
 # ============================================================
 # ROLE: monitoring
 # Agents légers côté VPS prod — Node Exporter + cAdvisor
-# Metrics exposées localement, scrapées par le VPS monitoring
 # ============================================================
 
-# ── Node Exporter ────────────────────────────────────────────
-
 - name: Create node_exporter user
-  user:
+  ansible.builtin.user:
     name: node_exporter
-    system: yes
+    system: true
     shell: /bin/false
-    create_home: no
+    create_home: false
 
 - name: Download Node Exporter
-  get_url:
-    url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
-    dest: "/tmp/node_exporter-{{ node_exporter_version }}.tar.gz"
+  ansible.builtin.get_url:
+    url: >
+      https://github.com/prometheus/node_exporter/releases/download/
+      v{{ monitoring_node_exporter_version }}/
+      node_exporter-{{ monitoring_node_exporter_version }}.linux-amd64.tar.gz
+    dest: "/tmp/node_exporter-{{ monitoring_node_exporter_version }}.tar.gz"
     mode: '0644'
 
 - name: Extract Node Exporter
-  unarchive:
-    src: "/tmp/node_exporter-{{ node_exporter_version }}.tar.gz"
+  ansible.builtin.unarchive:
+    src: "/tmp/node_exporter-{{ monitoring_node_exporter_version }}.tar.gz"
     dest: /tmp
-    remote_src: yes
+    remote_src: true
 
 - name: Install Node Exporter binary
-  copy:
-    src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+  ansible.builtin.copy:
+    src: "/tmp/node_exporter-{{ monitoring_node_exporter_version }}.linux-amd64/node_exporter"
     dest: /usr/local/bin/node_exporter
     owner: node_exporter
     group: node_exporter
     mode: '0755'
-    remote_src: yes
-  notify: restart node_exporter
+    remote_src: true
+  notify: Restart node_exporter
 
 - name: Deploy Node Exporter systemd service
-  template:
+  ansible.builtin.template:
     src: node_exporter.service.j2
     dest: /etc/systemd/system/node_exporter.service
     owner: root
     group: root
     mode: '0644'
   notify:
-    - reload systemd
-    - restart node_exporter
+    - Reload systemd
+    - Restart node_exporter
 
 - name: Enable and start Node Exporter
-  service:
+  ansible.builtin.service:
     name: node_exporter
     state: started
-    enabled: yes
-
-# ── UFW — allow Prometheus scrape from monitoring VPS ────────
+    enabled: true
 
 - name: Allow Node Exporter port from monitoring VPS only
-  ufw:
+  community.general.ufw:
     rule: allow
-    port: "{{ node_exporter_port }}"
+    port: "{{ monitoring_node_exporter_port }}"
     proto: tcp
-    src: "{{ prometheus_server_ip }}"
+    src: "{{ monitoring_prometheus_server_ip }}"
     comment: "Prometheus scrape — monitoring VPS"
 
 - name: Allow cAdvisor port from monitoring VPS only
-  ufw:
+  community.general.ufw:
     rule: allow
-    port: "{{ cadvisor_port }}"
+    port: "{{ monitoring_cadvisor_port }}"
     proto: tcp
-    src: "{{ prometheus_server_ip }}"
+    src: "{{ monitoring_prometheus_server_ip }}"
     comment: "cAdvisor scrape — monitoring VPS"
 
-# ── cAdvisor (Docker) ─────────────────────────────────────────
-
-- name: Deploy cAdvisor via Docker
-  template:
-    src: cadvisor-compose.yml.j2
-    dest: /opt/cadvisor/docker-compose.yml
-    owner: "{{ deploy_user }}"
-    group: "{{ deploy_user }}"
-    mode: '0644'
-
 - name: Create cAdvisor directory
-  file:
+  ansible.builtin.file:
     path: /opt/cadvisor
     state: directory
-    owner: "{{ deploy_user }}"
-    group: "{{ deploy_user }}"
+    owner: "{{ common_deploy_user | default('deploy') }}"
+    group: "{{ common_deploy_user | default('deploy') }}"
     mode: '0755'
+
+- name: Deploy cAdvisor via Docker Compose
+  ansible.builtin.template:
+    src: cadvisor-compose.yml.j2
+    dest: /opt/cadvisor/docker-compose.yml
+    owner: "{{ common_deploy_user | default('deploy') }}"
+    group: "{{ common_deploy_user | default('deploy') }}"
+    mode: '0644'
 
 - name: Start cAdvisor
   community.docker.docker_compose_v2:
     project_src: /opt/cadvisor
     state: present
-  become_user: "{{ deploy_user }}"
 
-# ── Nginx — expose metrics via reverse proxy (auth basique) ──
-
-- name: Deploy metrics nginx vhost (scrape endpoint sécurisé)
-  template:
+- name: Deploy metrics nginx vhost
+  ansible.builtin.template:
     src: metrics_vhost.conf.j2
     dest: /etc/nginx/sites-available/metrics.conf
     owner: root
     group: root
     mode: '0644'
-  notify: reload nginx
+  notify: Reload nginx
 
 - name: Enable metrics vhost
-  file:
+  ansible.builtin.file:
     src: /etc/nginx/sites-available/metrics.conf
     dest: /etc/nginx/sites-enabled/metrics.conf
     state: link
-  notify: reload nginx
+  notify: Reload nginx

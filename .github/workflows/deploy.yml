@@ -26,12 +26,8 @@ jobs:
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
         run: |
-          cd ansible
-          # Option A: tu renseignes production.ini localement (gitignored)
-          # ansible-playbook -i inventory/production.ini playbook.yml
-
-          # Option B: inventory dynamique simple (sans fichier)
           echo "[vps]" > /tmp/inventory.ini
-          echo "${VPS_HOST} ansible_user=${VPS_USER} ansible_port=22" >> /tmp/inventory.ini
-          ansible-playbook -i /tmp/inventory.ini playbook.yml
+          echo "${VPS_HOST} ansible_user=${VPS_USER} ansible_port=${VPS_PORT:-2222}" >> /tmp/inventory.ini
+          ansible-playbook -i /tmp/inventory.ini ansible/playbook.yml --diff

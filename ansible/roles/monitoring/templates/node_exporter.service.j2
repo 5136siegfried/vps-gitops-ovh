@@ -8,7 +8,7 @@ User=node_exporter
 Group=node_exporter
 Type=simple
 ExecStart=/usr/local/bin/node_exporter \
-  --web.listen-address="{{ metrics_bind_address }}:{{ node_exporter_port }}" \
+  --web.listen-address="{{ monitoring_metrics_bind_address }}:{{ monitoring_node_exporter_port }}" \
   --collector.filesystem.mount-points-exclude="^/(sys|proc|dev|host|etc)($$|/)" \
   --collector.systemd \
   --collector.processes

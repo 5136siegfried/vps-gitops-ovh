@@ -1,19 +1,11 @@
 # Managed by Ansible — do not edit manually
-# Auditd hardening rules
 
-# Remove existing rules
 -D
-
-# Buffer size
 -b 8192
-
-# Failure mode (1=log, 2=panic)
 -f 1
 
-# Monitor privileged commands
 -a always,exit -F arch=b64 -S execve -F euid=0 -k privileged
 
-# Monitor /etc changes
 -w /etc/passwd -p wa -k identity
 -w /etc/shadow -p wa -k identity
 -w /etc/group -p wa -k identity
@@ -21,26 +13,18 @@
 -w /etc/sudoers -p wa -k sudoers
 -w /etc/sudoers.d/ -p wa -k sudoers
 
-# Monitor SSH config
 -w /etc/ssh/sshd_config -p wa -k sshd
 
-# Monitor cron
 -w /etc/crontab -p wa -k cron
 -w /etc/cron.d/ -p wa -k cron
 -w /var/spool/cron/ -p wa -k cron
 
-# Monitor Docker
 -w /usr/bin/docker -p x -k docker
 -w /var/lib/docker -p wa -k docker
 
-# Monitor kernel modules
 -w /sbin/insmod -p x -k modules
 -w /sbin/rmmod -p x -k modules
 -w /sbin/modprobe -p x -k modules
 
-# Unauthorized file access attempts
 -a always,exit -F arch=b64 -S open -F dir=/etc -F success=0 -k unauth_access
 -a always,exit -F arch=b64 -S open -F dir=/root -F success=0 -k unauth_access
-
-# Make rules immutable (requires reboot to change)
-# -e 2

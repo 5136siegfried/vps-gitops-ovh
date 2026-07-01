@@ -1,31 +1,31 @@
 ---
 # SSH
-ssh_port: 2222
-ssh_permit_root_login: "no"
-ssh_password_authentication: "no"
-ssh_pubkey_authentication: "yes"
-ssh_max_auth_tries: 3
-ssh_client_alive_interval: 300
-ssh_client_alive_count_max: 2
+common_ssh_port: 2222
+common_ssh_permit_root_login: "no"
+common_ssh_password_authentication: "no"
+common_ssh_pubkey_authentication: "yes"
+common_ssh_max_auth_tries: 3
+common_ssh_client_alive_interval: 300
+common_ssh_client_alive_count_max: 2
 
 # Deploy user
-deploy_user: deploy
-deploy_user_shell: /bin/bash
-deploy_user_groups:
+common_deploy_user: deploy
+common_deploy_user_shell: /bin/bash
+common_deploy_user_groups:
   - sudo
   - docker
 
 # UFW — allowed ports
-ufw_allowed_ports:
-  - "{{ ssh_port }}"
+common_ufw_allowed_ports:
+  - "{{ common_ssh_port }}"
   - "80"
   - "443"
 
 # Fail2ban
-fail2ban_maxretry: 5
-fail2ban_bantime: 3600
-fail2ban_findtime: 600
+common_fail2ban_maxretry: 5
+common_fail2ban_bantime: 3600
+common_fail2ban_findtime: 600
 
 # System
-timezone: "Europe/Paris"
-locale: "fr_FR.UTF-8"
+common_timezone: "Europe/Paris"
+common_locale: "fr_FR.UTF-8"

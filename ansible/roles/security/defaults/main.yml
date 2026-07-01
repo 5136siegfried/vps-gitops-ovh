@@ -1,23 +1,16 @@
 ---
-# vps-security-toolkit integration
-toolkit_repo: "https://github.com/5136siegfried/vps-security-toolkit"
-toolkit_dir: /opt/vps-security-toolkit
-toolkit_report_dir: /var/log/security-reports
+security_toolkit_repo: "https://github.com/5136siegfried/vps-security-toolkit"
+security_toolkit_dir: /opt/vps-security-toolkit
+security_toolkit_report_dir: /var/log/security-reports
 
-# Audit schedule (cron)
-audit_schedule_hour: "2"
-audit_schedule_minute: "0"
-audit_schedule_weekday: "*"
+security_audit_schedule_hour: "2"
+security_audit_schedule_minute: "0"
+security_audit_schedule_weekday: "*"
 
-# Score threshold — alert if below
-audit_score_threshold: 70
+security_audit_score_threshold: 70
+security_audit_alert_webhook: ""
 
-# Alert webhook (Slack, Discord, ntfy...)
-audit_alert_webhook: ""  # surcharger dans vault
+security_auditd_enabled: true
 
-# Auditd
-auditd_enabled: true
-
-# rkhunter
-rkhunter_enabled: true
-rkhunter_update_on_install: true
+security_rkhunter_enabled: true
+security_rkhunter_update_on_install: true

@@ -7,26 +7,27 @@
 # ── System ──────────────────────────────────────────────────
 
 - name: Set hostname
-  hostname:
+  ansible.builtin.hostname:
     name: "{{ inventory_hostname }}"
 
 - name: Set timezone
-  timezone:
-    name: "{{ timezone }}"
+  ansible.builtin.command:
+    cmd: "timedatectl set-timezone {{ common_timezone }}"
+  changed_when: false
 
 - name: Set locale
-  locale_gen:
-    name: "{{ locale }}"
+  community.general.locale_gen:
+    name: "{{ common_locale }}"
     state: present
 
 - name: Update apt cache and upgrade packages
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     upgrade: dist
     cache_valid_time: 3600
 
 - name: Install base packages
-  apt:
+  ansible.builtin.apt:
     name:
       - curl
       - wget
@@ -49,7 +50,7 @@
 # ── Unattended upgrades ─────────────────────────────────────
 
 - name: Enable unattended upgrades
-  copy:
+  ansible.builtin.copy:
     dest: /etc/apt/apt.conf.d/20auto-upgrades
     content: |
       APT::Periodic::Update-Package-Lists "1";
@@ -63,113 +64,108 @@
 # ── Deploy user ─────────────────────────────────────────────
 
 - name: Create deploy user
-  user:
-    name: "{{ deploy_user }}"
-    shell: "{{ deploy_user_shell }}"
-    groups: "{{ deploy_user_groups }}"
-    append: yes
-    create_home: yes
+  ansible.builtin.user:
+    name: "{{ common_deploy_user }}"
+    shell: "{{ common_deploy_user_shell }}"
+    groups: "{{ common_deploy_user_groups }}"
+    append: true
+    create_home: true
     state: present
 
 - name: Create .ssh directory for deploy user
-  file:
-    path: "/home/{{ deploy_user }}/.ssh"
+  ansible.builtin.file:
+    path: "/home/{{ common_deploy_user }}/.ssh"
     state: directory
-    owner: "{{ deploy_user }}"
-    group: "{{ deploy_user }}"
+    owner: "{{ common_deploy_user }}"
+    group: "{{ common_deploy_user }}"
     mode: '0700'
 
 - name: Deploy authorized_keys for deploy user
-  authorized_key:
-    user: "{{ deploy_user }}"
+  ansible.posix.authorized_key:
+    user: "{{ common_deploy_user }}"
     state: present
-    key: "{{ deploy_ssh_public_key }}"
-  when: deploy_ssh_public_key is defined
+    key: "{{ common_deploy_ssh_public_key }}"
+  when: common_deploy_ssh_public_key is defined
 
 - name: Allow deploy user to sudo without password
-  copy:
-    dest: "/etc/sudoers.d/{{ deploy_user }}"
-    content: "{{ deploy_user }} ALL=(ALL) NOPASSWD:ALL\n"
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/{{ common_deploy_user }}"
+    content: "{{ common_deploy_user }} ALL=(ALL) NOPASSWD:ALL\n"
     validate: 'visudo -cf %s'
     mode: '0440'
 
 # ── SSH hardening ────────────────────────────────────────────
 
 - name: Harden SSH configuration
-  template:
+  ansible.builtin.template:
     src: sshd_config.j2
     dest: /etc/ssh/sshd_config
     owner: root
     group: root
     mode: '0600'
     validate: '/usr/sbin/sshd -t -f %s'
-  notify: restart sshd
+  notify: Restart sshd
 
 # ── UFW ─────────────────────────────────────────────────────
 
 - name: Reset UFW to defaults
-  ufw:
+  community.general.ufw:
     state: reset
 
-- name: Set UFW default policies
-  ufw:
-    direction: "{{ item.direction }}"
-    policy: "{{ item.policy }}"
-  loop:
-    - { direction: incoming, policy: deny }
-    - { direction: outgoing, policy: allow }
+- name: Set UFW default incoming policy
+  community.general.ufw:
+    direction: incoming
+    policy: deny
+
+- name: Set UFW default outgoing policy
+  community.general.ufw:
+    direction: outgoing
+    policy: allow
 
 - name: Allow configured ports
-  ufw:
+  community.general.ufw:
     rule: allow
     port: "{{ item }}"
     proto: tcp
-  loop: "{{ ufw_allowed_ports }}"
+  loop: "{{ common_ufw_allowed_ports }}"
 
 - name: Enable UFW
-  ufw:
+  community.general.ufw:
     state: enabled
     logging: 'on'
 
 # ── Fail2ban ─────────────────────────────────────────────────
 
 - name: Configure fail2ban
-  template:
+  ansible.builtin.template:
     src: jail.local.j2
     dest: /etc/fail2ban/jail.local
     owner: root
     group: root
     mode: '0644'
-  notify: restart fail2ban
+  notify: Restart fail2ban
 
 - name: Enable and start fail2ban
-  service:
+  ansible.builtin.service:
     name: fail2ban
     state: started
-    enabled: yes
+    enabled: true
 
 # ── Kernel hardening (sysctl) ────────────────────────────────
 
 - name: Apply sysctl hardening
-  sysctl:
+  ansible.posix.sysctl:
     name: "{{ item.key }}"
     value: "{{ item.value }}"
     state: present
-    reload: yes
+    reload: true
   loop:
-    # IP spoofing protection
-    - { key: net.ipv4.conf.all.rp_filter, value: "1" }
-    - { key: net.ipv4.conf.default.rp_filter, value: "1" }
-    # Ignore ICMP redirects
-    - { key: net.ipv4.conf.all.accept_redirects, value: "0" }
-    - { key: net.ipv6.conf.all.accept_redirects, value: "0" }
-    # Ignore send redirects
-    - { key: net.ipv4.conf.all.send_redirects, value: "0" }
-    # Disable IP source routing
-    - { key: net.ipv4.conf.all.accept_source_route, value: "0" }
-    # SYN flood protection
-    - { key: net.ipv4.tcp_syncookies, value: "1" }
-    # Log martians
-    - { key: net.ipv4.conf.all.log_martians, value: "1" }
-    # Disable IPv6 if not needed
-    - { key: net.ipv6.conf.all.disable_ipv6, value: "0" }
+    - {key: net.ipv4.conf.all.rp_filter, value: "1"}
+    - {key: net.ipv4.conf.default.rp_filter, value: "1"}
+    - {key: net.ipv4.conf.all.accept_redirects, value: "0"}
+    - {key: net.ipv6.conf.all.accept_redirects, value: "0"}
+    - {key: net.ipv4.conf.all.send_redirects, value: "0"}
+    - {key: net.ipv4.conf.all.accept_source_route, value: "0"}
+    - {key: net.ipv4.tcp_syncookies, value: "1"}
+    - {key: net.ipv4.conf.all.log_martians, value: "1"}
+    - {key: net.ipv6.conf.all.disable_ipv6, value: "0"}

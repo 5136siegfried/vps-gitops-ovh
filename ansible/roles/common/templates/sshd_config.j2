@@ -1,22 +1,22 @@
 # Managed by Ansible — do not edit manually
 
-Port {{ ssh_port }}
+Port {{ common_ssh_port }}
 AddressFamily inet
 
-PermitRootLogin {{ ssh_permit_root_login }}
-PasswordAuthentication {{ ssh_password_authentication }}
-PubkeyAuthentication {{ ssh_pubkey_authentication }}
+PermitRootLogin {{ common_ssh_permit_root_login }}
+PasswordAuthentication {{ common_ssh_password_authentication }}
+PubkeyAuthentication {{ common_ssh_pubkey_authentication }}
 AuthorizedKeysFile .ssh/authorized_keys
 PermitEmptyPasswords no
 ChallengeResponseAuthentication no
 UsePAM yes
 
-MaxAuthTries {{ ssh_max_auth_tries }}
+MaxAuthTries {{ common_ssh_max_auth_tries }}
 MaxSessions 10
 LoginGraceTime 30
 
-ClientAliveInterval {{ ssh_client_alive_interval }}
-ClientAliveCountMax {{ ssh_client_alive_count_max }}
+ClientAliveInterval {{ common_ssh_client_alive_interval }}
+ClientAliveCountMax {{ common_ssh_client_alive_count_max }}
 
 X11Forwarding no
 AllowAgentForwarding no
@@ -25,6 +25,6 @@ PrintMotd no
 
 Subsystem sftp /usr/lib/openssh/sftp-server
 
-{% if deploy_user is defined %}
-AllowUsers {{ deploy_user }}
+{% if common_deploy_user is defined %}
+AllowUsers {{ common_deploy_user }}
 {% endif %}

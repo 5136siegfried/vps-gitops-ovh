@@ -2,12 +2,12 @@ version: "3.8"
 
 services:
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:{{ cadvisor_version }}
+    image: gcr.io/cadvisor/cadvisor:{{ monitoring_cadvisor_version }}
     container_name: cadvisor
     restart: unless-stopped
     privileged: true
     ports:
-      - "{{ metrics_bind_address }}:{{ cadvisor_port }}:8080"
+      - "{{ monitoring_metrics_bind_address }}:{{ monitoring_cadvisor_port }}:8080"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro

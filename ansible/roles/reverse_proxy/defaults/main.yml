@@ -1,29 +1,20 @@
 ---
 # Nginx
-nginx_worker_processes: auto
-nginx_worker_connections: 1024
-nginx_keepalive_timeout: 65
-nginx_client_max_body_size: "10m"
-nginx_server_tokens: "off"
+reverse_proxy_nginx_worker_processes: auto
+reverse_proxy_nginx_worker_connections: 1024
+reverse_proxy_nginx_keepalive_timeout: 65
+reverse_proxy_nginx_client_max_body_size: "10m"
+reverse_proxy_nginx_server_tokens: "off"
 
 # Certbot
-certbot_email: "admin@5136.fr"
-certbot_staging: false  # set true to test without rate limits
+reverse_proxy_certbot_email: "admin@5136.fr"
+reverse_proxy_certbot_staging: false
 
-# Virtual hosts to configure
-# Each entry will get an nginx vhost + TLS cert
-nginx_vhosts: []
-# Example:
-# nginx_vhosts:
-#   - domain: app.5136.fr
-#     upstream: localhost:8080
-#     websocket: false
-#   - domain: ws.5136.fr
-#     upstream: localhost:3000
-#     websocket: true
+# Virtual hosts
+reverse_proxy_nginx_vhosts: []
 
 # Security headers
-nginx_security_headers:
+reverse_proxy_nginx_security_headers:
   X-Frame-Options: "SAMEORIGIN"
   X-Content-Type-Options: "nosniff"
   X-XSS-Protection: "1; mode=block"
